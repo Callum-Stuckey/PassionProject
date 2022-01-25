@@ -1,103 +1,156 @@
+-- CODED IN ROBLOX IDE
+-- CODING LANGUAGE: LUA
 
 
+-- This creates an object [object orientated programming], which stores variables inside, its children, to be called upoon later
 local Movement = {CrouchStuck = false,Crouching = false,SlipStream = 0,Vaulting = false,JumpCD = false,Running = false,WPressed = false,WDown = false,ADown = false,SDown = false,DDown = false}
+-- This creates a child in movement, called Animations and Sounds which store the correct animations and sounds to be called upon
 Movement.Animations = {Crouch = humanoid:LoadAnimation(animFolder.Crouch),Run = humanoid:LoadAnimation(animFolder.Run),Vault = humanoid:LoadAnimation(animFolder.Vaulting)}
 Movement.Sounds = {GetUp = soundFolder.GettingUp:Clone(),Jumping = soundFolder.Jumping:Clone()}
+-- Loops through and places the sounds inside the character
 for i,v in pairs(Movement.Sounds) do
 	v.Parent = HRP
 end
+
+-- This function, checks if anything is above the player, if they are available to uncrouch
 function Movement:CrouchCheck()
+	-- Does a raycast, upwards - A raycast in roblox IDE fires an invisible ray towards a direction (provided by second arg, has to be vector), given a blacklist/whitelist
+	-- it will then return the first object it 'hits'
+	
+	-- This raycast fires upwards from the player, as the Y co-ordinate is 1,
 	local ray = workspace:Raycast(H.Position,Vector3.new(0,1,0),CreateParams(Enum.RaycastFilterType.Blacklist,{character,workspace.Living,workspace.Debris}))
+	-- Checks if an object has been hit
 	if ray and ray.Instance then
+		-- Returns true as it has found an object blocking it
 		return true
 	end
 end
+
+-- A function that entirely manages 'Crouching'
 function Movement:Crouch()
-	if Movement.Vaulting then
-	elseif Movement.Crouching then
+	-- If the person is doing parkour then it will break the function by returning nothing and ending the if statement
+	if Movement.Vaulting then return end
+	-- Checks if they are crouched
+	if Movement.Crouching then
+		-- Checks if anything is above them, and breaks function if there is
 		if Movement:CrouchCheck() then return end
+		-- Disables crouching
 		Movement.Crouching = false
 	else
+		-- Enables crouching
 		Movement.Crouching = true
-		if Movement.Running then
-			Movement.Running = false
-		end
+		-- Sets running to false
+		Movement.Running = not Movement.Running
+		-- Plays correct animation
 		Movement.Animations.Crouch:Play()
+		-- Sets the movement speed to 5
 		humanoid.WalkSpeed = 5
-		spawn(function()
-			while Movement.Crouching == true do
-				if Movement.WDown or Movement.DDown or Movement.ADown or Movement.SDown then
-					Movement.Animations.Crouch:AdjustSpeed(1)
-				else
-					Movement.Animations.Crouch:AdjustSpeed(0)
-				end
-				wait()
+		-- While loop, will continuously run while crouching is true
+		while Movement.Crouching == true do
+			-- If the character is holding W-A-S-D then
+			if Movement.WDown or Movement.DDown or Movement.ADown or Movement.SDown then
+				-- Animation is set to full speed
+				Movement.Animations.Crouch:AdjustSpeed(1)
+			else
+				-- Pauses animation
+				Movement.Animations.Crouch:AdjustSpeed(0)
 			end
-			Movement.Animations.Crouch:Stop()
-			if Movement.Running then else
-				humanoid.WalkSpeed = 16
-			end
+			
+			wait()
+		end
+		-- Crouching is now false, due too while loop ending
+		
+		-- Disables Animation
+		Movement.Animations.Crouch:Stop()
+		-- Checks if player is now running
+		if not Movement.Running then 
+			-- if not running then set walkspeed to base
+			humanoid.WalkSpeed = 16
+		end
 		end)
 	end
 end
 
+-- Function that manages running
 function Movement:Run()
+	-- Checks if crouching
 	if Movement.Crouching then
+		-- Checks if they are able to uncrouch, otherwise it breaks function
 		if Movement:CrouchCheck() then return end
+		-- Disables crouching
 		Movement.Crouching = false
 	end
+	-- Sets bool running variable to true
 	Movement.Running = true
+	-- Animation plays
 	Movement.Animations.Run:Play()
+	-- Sets movement speed to be 21 and adds on a 'SlipStream' effect which is gained later, by parkour which will decrease over time
 	humanoid.WalkSpeed = 21 + Movement.SlipStream
-	spawn(function()
-		while humanoid.WalkSpeed > 20 and (Movement.WDown == true or Movement.SDown == true or Movement.DDown == true or Movement.ADown == true) do 
-			local st = humanoid:GetState()
-			if st == Enum.HumanoidStateType.Jumping or st == Enum.HumanoidStateType.Freefall then else
-				Movement.Animations.Run:AdjustSpeed(character.Humanoid.WalkSpeed/21) 
-			end
-			wait()
+	-- While the movement speed is above 20 and user is holding W-A-S-D
+	while humanoid.WalkSpeed > 20 and (Movement.WDown == true or Movement.SDown == true or Movement.DDown == true or Movement.ADown == true) do 
+		-- Gets the humanoid's current state such as 'falling', 'walking'
+		local st = humanoid:GetState()
+		
+		if st == Enum.HumanoidStateType.Jumping or st == Enum.HumanoidStateType.Freefall then else
+			Movement.Animations.Run:AdjustSpeed(character.Humanoid.WalkSpeed/21) 
 		end
-		Movement.Animations.Run:Stop()
-		Movement.Running = false
-		if Movement.Crouching then
-			humanoid.WalkSpeed = 5
-		else
-			humanoid.WalkSpeed = 16
-		end
-	end)	
+		wait()
+	end
+	-- While loop ended
+	-- Stops animation
+	Movement.Animations.Run:Stop()
+	-- Sets running bool to false
+	Movement.Running = false
+	-- Sets walkspeed to 5 if crouching, 16 if not by using logic gate
+	humanoid.WalkSpeed = Movement.Crouching and 5 or 16
 end
 
+
+-- Function for jumping
 function Movement:Jump()
+	-- Does a raycast which is explained at start, does the raycast forward
 	local ray = workspace:Raycast(HRP.Position,HRP.CFrame.lookVector * 2.5,CreateParams(Enum.RaycastFilterType.Whitelist,{workspace.Vault}))
-	if Movement.Vaulting == true then
-	elseif ray and ray.Instance then
-		-- VAULT
+	-- Breaks code if they are vaulting
+	if Movement.Vaulting == true then break end
+	-- Checks if ray detected an object infront
+	if ray and ray.Instance then
+		-- Begins Vaulting
+		-- Checks if crouching like before
 		if Movement.Crouching then
 			if Movement:CrouchCheck() then return end
 			Movement.Crouching = false
 		end
-		CreateSound(soundFolder.Vault,character.HumanoidRootPart,1,math.random(9,11)/10)
+		-- Sets vaulting to true
 		Movement.Vaulting = true
+		-- Sets a variable to current state of movement.Running
 		local WasRunning = Movement.Running
-		--print(ray.Instance)
+		-- Sets movement speed to 0
 		humanoid.WalkSpeed = 0
-		--humanoid.AutoRotate = false
+		-- Checks if the parent of the object is workspace.Vault, meaning it is a single object and not a collection
 		if ray.Instance.Parent == workspace.Vault then
+			-- Sets object to be not-collidable meaning you can walk through it
 			ray.Instance.CanCollide = false
 		else
+			-- Otherwise it sets all of the children of the parent, to be uncollidable
 			for i,v in pairs(ray.Instance.Parent:GetChildren()) do
 				v.CanCollide = false
 			end
 		end
+		-- Creates a BodyPosition and BodyVelocity, which in roblox is used to propell the character and smoothly set their position
 		local BP = Instance.new("BodyPosition",HRP)
 		local BV = Instance.new("BodyVelocity",HRP)
+		-- Sets the maximum amount of force they can apply on the part
 		BP.MaxForce = Vector3.new(0,100000,0)
 		BV.MaxForce = Vector3.new(100000,0,100000)
+		-- Sets empty variables for future use
 		local HighestPositionPart
 		local HP = 0
+		-- Checks if it is a single object by it being just the parent of vault
 		if ray.Instance.Parent == workspace.Vault then
+			-- Sets highest position part to be that
 			HighestPositionPart = ray.Instance
 		else
+			-- Otherwise loops through and finds highest point
 			for i,v in pairs(ray.Instance.Parent:GetChildren()) do
 				if v.Position.Y > HP then
 					HP = v.Position.Y
@@ -105,25 +158,31 @@ function Movement:Jump()
 				end
 			end
 		end
-		--print((HP + (HighestPositionPart.Size.y/2)) - HRP.Position.y)
+		-- Sets the 'bodyposition' which smoothly sets the position
 		BP.Position = HRP.Position + Vector3.new(0,((HP + (HighestPositionPart.Size.y)) - HRP.Position.y) + 1,0)
+		-- Sets the power of it
 		BP.P = 1000
+		-- Sets the dampening of it
 		BP.D = 100
+		-- Sets the velocity of the BODYVELOCITY
 		BV.Velocity = HRP.CFrame.lookVector * 30
+		-- Plays the animation
 		Movement.Animations.Vault:Play()
+		-- Sets them both BP and BV to delete in .25 seconds
 		game.Debris:AddItem(BP,.25)
 		game.Debris:AddItem(BV,.25)
-		spawn(function()
+		-- Sets a delay for it's deletion
 			wait(.25)
+			-- Increases slipstream which increases movement speed temporarily
 			Movement.SlipStream = Movement.SlipStream + 2
-			--print(Movement.SlipStream)
-			spawn(function()
-				wait(2.5)
+			-- Sets it so, in 2.5 seconds it will decrease and apply correct movement speed
+			delay(2.5,function()
 				Movement.SlipStream = Movement.SlipStream - 2
 				if Movement.Running == true then
 					humanoid.WalkSpeed = 21 + Movement.SlipStream
 				end
 			end)
+			-- Checks if it is a single object like before and corrects their collidability
 			if ray.Instance.Parent == workspace.Vault then
 				ray.Instance.CanCollide = true
 			else
@@ -131,50 +190,49 @@ function Movement:Jump()
 					v.CanCollide = true
 				end
 			end
+			-- If they were running then
 			if WasRunning then
+			-- Play animation
 				Movement:Run()
 			else
+				-- Sets correct speed for each movement types
 				if Movement.Crouching then
 					humanoid.WalkSpeed = 5
 				else
 					humanoid.WalkSpeed = 16
 				end
 			end
-			humanoid.AutoRotate = true
+			-- Sets vaulting to be false
 			Movement.Vaulting = false
 		end)
-	elseif Movement.JumpCD == true then else
+	-- If not jump cooldown then
+	elseif not Movement.JumpCD == true then 
+		-- If they were crouching then check if they can endcrouch, if they can then end it
 		if Movement.Crouching then
 			if Movement:CrouchCheck() then return end
 			Movement.Crouching = false
 		end
+		-- Plays correct sound
 		Movement.Sounds.Jumping:Play()
+		-- Sets a cooldown
 		Movement.JumpCD = true
+		-- Sets jump power
 		humanoid.JumpPower = 50
+		-- Sets state of humanoid
 		humanoid.Jump = true
-		spawn(function()
-			wait(.1)
-			humanoid.JumpPower = 0
-			wait(.75)
+		-- Sets it for .85 seconds the cooldown to end
+		Delay(.85,function()
 			Movement.JumpCD = false
 		end)
 	end
 end
-local WindUp = game:GetService("TweenService"):Create(script.Wind,TweenInfo.new(2,Enum.EasingStyle.Quad),{Volume = 1})
-local WindDown = game:GetService("TweenService"):Create(script.Wind,TweenInfo.new(2,Enum.EasingStyle.Quad),{Volume = 0})
 
-humanoid.StateChanged:Connect(function(Old,New)
-	if New == Enum.HumanoidStateType.Jumping or New == Enum.HumanoidStateType.Freefall then
-		Movement.Animations.Run:AdjustSpeed(.25)
-		WindDown:Cancel()
-		WindUp:Play()
-	else
-		Movement.Animations.Run:AdjustSpeed(1)
-		WindUp:Cancel()
-		WindDown:Play()
-	end
-end)
+
+-- On key pressed
 UI.InputBegan:Connect(function(Key,GPE)
+-- If not GPE = if not typing in chat
+
+	-- Below it will set the animations, keysdown and enables running
 	if not GPE and Key.KeyCode == Enum.KeyCode.W then
 		Movement.WDown = true
 		if Movement.WPressed == true then
@@ -201,7 +259,10 @@ UI.InputBegan:Connect(function(Key,GPE)
 	
 	end
 end)
+
+-- Input Ended from keyboard
 UI.InputEnded:Connect(function(Key,GPE)
+	-- If not typing then it will set the current keys to their correct statuses
 	if not GPE and Key.KeyCode == Enum.KeyCode.W then
 		Movement.WDown = false
 	elseif not GPE and Key.KeyCode == Enum.KeyCode.D then
