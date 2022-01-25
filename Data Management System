@@ -1,0 +1,160 @@
+-- CODED IN ROBLOX IDE
+-- CODING LANGUAGE: LUA
+
+
+-- General Module Script
+local general = {}
+
+-- This function, will switch the value passed through between RGB and String
+general.SwitchColor3String = function(Value)
+-- Checks the type of the arg
+	if typeof(Value) == "Color3" then
+    -- if arg is color3 then, return a string which for example, if data inputted is RGB(1,1,1) it would be "1 1 1" in a string format.
+		return tostring(Value.R).." "..tostring(Value.G).." "..tostring(Value.B)
+   -- checks if the value is a string, as an error would be caused if it was neither
+	elseif typeof(Value) == "string" then
+    -- splits the string into a table, splits is from each gap, for example "1 1" would be split into a table, with two values inside both being 1
+		local x = string.split(Value," ")
+    -- converts it into RGB Color3 format, by getting index 1-3 in x and * by 255, to be in correct format
+		local C = Color3.fromRGB(tonumber(x[1]) * 255,tonumber(x[2]) * 255,tonumber(x[3]) * 255)
+    -- Returns R G B values
+		return C,C.R,C.G,C.B
+	end
+end
+
+-- When module is acquired, this returns the code inside
+return general
+
+
+
+-- Data Values Script
+
+-- Acquires the general module, which is above
+local general = require(game.ServerScriptService.GeneralModule)
+
+
+-- This is a list of VALUES that the player should have at all times
+local module = {
+  -- Formatted in this way:
+  -- [Index_Name] = function()
+  --  return Base_Value_Of_Stat, false/true depending on whether it should put the player in a 'Choose your Name' screen
+	['Class'] = function(plr)
+    -- Returns nothing as it, wants to put it in 'Choose your name' screen in which then it'll apply
+		return nil,true
+	end,
+	['Hair Colour'] = function() 
+    -- Returns a random RGB formatted color, from the children of ServerStorage['Hair Colours']'s values
+		return general.SwitchColor3String(game.ServerStorage["Hair Colours"]:GetChildren()[math.random(1,#game.ServerStorage["Hair Colours"]:GetChildren())].Value)
+	end,
+	['Eye Colour'] = function()
+		return general.SwitchColor3String(game.ServerStorage["Eye Colours"]:GetChildren()[math.random(1,#game.ServerStorage["Eye Colours"]:GetChildren())].Value)
+	end,
+	['Accessories'] = function()
+    -- Returns a table
+		return {}
+	end,
+	['Mask'] = function()
+    -- Returns a random number between 1-5
+		return math.random(1,5)
+	end,
+	['Height'] = function()
+		return math.random(55,62)
+	end,
+	['Age'] = function()
+		return math.random(12,13)
+	end,
+	['Role'] = function()
+    -- Returns string None
+		return "None"
+	end,
+	['Cloak'] = function()
+		return math.random(1,2)
+	end,
+	['Name'] = function(plr)
+		return nil,true
+	end,
+	['Clan'] = function(plr)
+		return nil,true
+	end,
+	['Known'] = function(plr)
+    -- Returns Table
+		return {}
+	end,
+}
+
+
+return Module
+
+
+-- DATA FUNCTIONS MODULE SCRIPT
+
+-- Acquires the values
+local Values = require(script.Parent.DataValues)
+
+
+local module = {}
+
+-- this function will format the table into a string, inside of a saved value
+module.savedata = function(pf,tbl)
+  -- JSONEncode and Decode from the HttpService will convert a string into a table, and back into a string
+  -- This will set the Information.Value (A string value) as tbl (a table/list), terraformed into a string
+	pf.Information.Value = game:GetService("HttpService"):JSONEncode(tbl)
+end
+
+
+-- This will check all of the player's current data and make sure they are correct, if incorrect it will apply the correct value by fireing the function embedded
+-- inside of each index of datavalues for the correct value
+module.checkdata = function(plr,charinfo)
+  
+  -- x is the variable used to check for change
+	local x = false
+  -- this is the variable used to check if it has to reload the player so they can therefore enter 'Enter your Name' screen
+	local kickregister = false
+  -- Loops through the correct data-values, providing index and value through every pass
+	for i,v in pairs(Values) do
+    -- Checks if charinfo table, has the same index
+		if not charinfo[i] then 
+      -- Due too not having that index, it detects change and sets x to true
+			x = true
+      -- Corrects not having it, and fires the function inside values which will return ActualValue and Reload 
+			charinfo[i],kickregister = v(plr,charinfo)
+		end
+	end
+  -- if one of the values requires you to reload, this runs
+	if kickregister then
+    -- saves data
+		module.savedata(game.ServerStorage.PlayerFolders[plr.Name],charinfo)
+    -- it kicks the player, so they have to rejoin to re-access the start screen, notifieing them of the reasoning
+		plr:Kick("You've been reset")
+	end
+	return charinfo,x,DontRefresh
+end
+
+
+-- This function compares data
+module.comparedata = function(data1,data2)
+  -- if x is true, it means the values aren't the same
+	local x = false
+  -- if the value is a table/list
+	if typeof(data1) == "table" then
+    -- loops through table, returning index and value
+		for i,v in pairs(data1) do
+      -- if the other value, index is equivalent to the same value then
+			if data2[i] ~= v then
+        -- sets x to true due too being not same
+				x = true
+			end
+		end
+	else
+    -- if it is not a table, it then does a logic gate check,
+    -- if they are not the same, it will return true, if they are the same it will return false
+		x = (data1 and not data2) or (data2 and not data1)
+	end
+  -- returns x, the change value
+	return x
+end
+
+
+
+
+return module
