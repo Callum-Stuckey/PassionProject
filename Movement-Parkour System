@@ -1,0 +1,214 @@
+
+
+local Movement = {CrouchStuck = false,Crouching = false,SlipStream = 0,Vaulting = false,JumpCD = false,Running = false,WPressed = false,WDown = false,ADown = false,SDown = false,DDown = false}
+Movement.Animations = {Crouch = humanoid:LoadAnimation(animFolder.Crouch),Run = humanoid:LoadAnimation(animFolder.Run),Vault = humanoid:LoadAnimation(animFolder.Vaulting)}
+Movement.Sounds = {GetUp = soundFolder.GettingUp:Clone(),Jumping = soundFolder.Jumping:Clone()}
+for i,v in pairs(Movement.Sounds) do
+	v.Parent = HRP
+end
+function Movement:CrouchCheck()
+	local ray = workspace:Raycast(H.Position,Vector3.new(0,1,0),CreateParams(Enum.RaycastFilterType.Blacklist,{character,workspace.Living,workspace.Debris}))
+	if ray and ray.Instance then
+		return true
+	end
+end
+function Movement:Crouch()
+	if Movement.Vaulting then
+	elseif Movement.Crouching then
+		if Movement:CrouchCheck() then return end
+		Movement.Crouching = false
+	else
+		Movement.Crouching = true
+		if Movement.Running then
+			Movement.Running = false
+		end
+		Movement.Animations.Crouch:Play()
+		humanoid.WalkSpeed = 5
+		spawn(function()
+			while Movement.Crouching == true do
+				if Movement.WDown or Movement.DDown or Movement.ADown or Movement.SDown then
+					Movement.Animations.Crouch:AdjustSpeed(1)
+				else
+					Movement.Animations.Crouch:AdjustSpeed(0)
+				end
+				wait()
+			end
+			Movement.Animations.Crouch:Stop()
+			if Movement.Running then else
+				humanoid.WalkSpeed = 16
+			end
+		end)
+	end
+end
+
+function Movement:Run()
+	if Movement.Crouching then
+		if Movement:CrouchCheck() then return end
+		Movement.Crouching = false
+	end
+	Movement.Running = true
+	Movement.Animations.Run:Play()
+	humanoid.WalkSpeed = 21 + Movement.SlipStream
+	spawn(function()
+		while humanoid.WalkSpeed > 20 and (Movement.WDown == true or Movement.SDown == true or Movement.DDown == true or Movement.ADown == true) do 
+			local st = humanoid:GetState()
+			if st == Enum.HumanoidStateType.Jumping or st == Enum.HumanoidStateType.Freefall then else
+				Movement.Animations.Run:AdjustSpeed(character.Humanoid.WalkSpeed/21) 
+			end
+			wait()
+		end
+		Movement.Animations.Run:Stop()
+		Movement.Running = false
+		if Movement.Crouching then
+			humanoid.WalkSpeed = 5
+		else
+			humanoid.WalkSpeed = 16
+		end
+	end)	
+end
+
+function Movement:Jump()
+	local ray = workspace:Raycast(HRP.Position,HRP.CFrame.lookVector * 2.5,CreateParams(Enum.RaycastFilterType.Whitelist,{workspace.Vault}))
+	if Movement.Vaulting == true then
+	elseif ray and ray.Instance then
+		-- VAULT
+		if Movement.Crouching then
+			if Movement:CrouchCheck() then return end
+			Movement.Crouching = false
+		end
+		CreateSound(soundFolder.Vault,character.HumanoidRootPart,1,math.random(9,11)/10)
+		Movement.Vaulting = true
+		local WasRunning = Movement.Running
+		--print(ray.Instance)
+		humanoid.WalkSpeed = 0
+		--humanoid.AutoRotate = false
+		if ray.Instance.Parent == workspace.Vault then
+			ray.Instance.CanCollide = false
+		else
+			for i,v in pairs(ray.Instance.Parent:GetChildren()) do
+				v.CanCollide = false
+			end
+		end
+		local BP = Instance.new("BodyPosition",HRP)
+		local BV = Instance.new("BodyVelocity",HRP)
+		BP.MaxForce = Vector3.new(0,100000,0)
+		BV.MaxForce = Vector3.new(100000,0,100000)
+		local HighestPositionPart
+		local HP = 0
+		if ray.Instance.Parent == workspace.Vault then
+			HighestPositionPart = ray.Instance
+		else
+			for i,v in pairs(ray.Instance.Parent:GetChildren()) do
+				if v.Position.Y > HP then
+					HP = v.Position.Y
+					HighestPositionPart = v
+				end
+			end
+		end
+		--print((HP + (HighestPositionPart.Size.y/2)) - HRP.Position.y)
+		BP.Position = HRP.Position + Vector3.new(0,((HP + (HighestPositionPart.Size.y)) - HRP.Position.y) + 1,0)
+		BP.P = 1000
+		BP.D = 100
+		BV.Velocity = HRP.CFrame.lookVector * 30
+		Movement.Animations.Vault:Play()
+		game.Debris:AddItem(BP,.25)
+		game.Debris:AddItem(BV,.25)
+		spawn(function()
+			wait(.25)
+			Movement.SlipStream = Movement.SlipStream + 2
+			--print(Movement.SlipStream)
+			spawn(function()
+				wait(2.5)
+				Movement.SlipStream = Movement.SlipStream - 2
+				if Movement.Running == true then
+					humanoid.WalkSpeed = 21 + Movement.SlipStream
+				end
+			end)
+			if ray.Instance.Parent == workspace.Vault then
+				ray.Instance.CanCollide = true
+			else
+				for i,v in pairs(ray.Instance.Parent:GetChildren()) do
+					v.CanCollide = true
+				end
+			end
+			if WasRunning then
+				Movement:Run()
+			else
+				if Movement.Crouching then
+					humanoid.WalkSpeed = 5
+				else
+					humanoid.WalkSpeed = 16
+				end
+			end
+			humanoid.AutoRotate = true
+			Movement.Vaulting = false
+		end)
+	elseif Movement.JumpCD == true then else
+		if Movement.Crouching then
+			if Movement:CrouchCheck() then return end
+			Movement.Crouching = false
+		end
+		Movement.Sounds.Jumping:Play()
+		Movement.JumpCD = true
+		humanoid.JumpPower = 50
+		humanoid.Jump = true
+		spawn(function()
+			wait(.1)
+			humanoid.JumpPower = 0
+			wait(.75)
+			Movement.JumpCD = false
+		end)
+	end
+end
+local WindUp = game:GetService("TweenService"):Create(script.Wind,TweenInfo.new(2,Enum.EasingStyle.Quad),{Volume = 1})
+local WindDown = game:GetService("TweenService"):Create(script.Wind,TweenInfo.new(2,Enum.EasingStyle.Quad),{Volume = 0})
+
+humanoid.StateChanged:Connect(function(Old,New)
+	if New == Enum.HumanoidStateType.Jumping or New == Enum.HumanoidStateType.Freefall then
+		Movement.Animations.Run:AdjustSpeed(.25)
+		WindDown:Cancel()
+		WindUp:Play()
+	else
+		Movement.Animations.Run:AdjustSpeed(1)
+		WindUp:Cancel()
+		WindDown:Play()
+	end
+end)
+UI.InputBegan:Connect(function(Key,GPE)
+	if not GPE and Key.KeyCode == Enum.KeyCode.W then
+		Movement.WDown = true
+		if Movement.WPressed == true then
+			Movement:Run()
+		else
+			Movement.WPressed = true
+			spawn(function()
+				wait(.15)
+				Movement.WPressed = false
+			end)
+		end
+	elseif not GPE and (Key.KeyCode == Enum.KeyCode.LeftControl or Key.KeyCode == Enum.KeyCode.RightControl)  then
+		Movement:Crouch()
+	elseif not GPE and Key.KeyCode == Enum.KeyCode.E then
+		game.ReplicatedStorage.Interact:FireServer()
+	elseif not GPE and Key.KeyCode == Enum.KeyCode.Space then
+		Movement:Jump()
+	elseif not GPE and Key.KeyCode == Enum.KeyCode.D then
+		Movement.DDown = true
+	elseif not GPE and Key.KeyCode == Enum.KeyCode.A then
+		Movement.ADown = true
+	elseif not GPE and Key.KeyCode == Enum.KeyCode.S then
+		Movement.SDown = true
+	
+	end
+end)
+UI.InputEnded:Connect(function(Key,GPE)
+	if not GPE and Key.KeyCode == Enum.KeyCode.W then
+		Movement.WDown = false
+	elseif not GPE and Key.KeyCode == Enum.KeyCode.D then
+		Movement.DDown = false
+	elseif not GPE and Key.KeyCode == Enum.KeyCode.A then
+		Movement.ADown = false
+	elseif not GPE and Key.KeyCode == Enum.KeyCode.S then
+		Movement.SDown = false
+	end
+end)
