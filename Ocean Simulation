@@ -1,0 +1,63 @@
+
+-- CODED IN ROBLOX IDE
+-- CODING LANGUAGE: LUA
+
+-- This gets the necessary wind-values which can be changed in the IDE or by the game itself from any server-sided code.
+local WindValues = game.ReplicatedStorage.WindValues
+-- Gets the Ocean mesh, to recall at later use
+local Ocean = workspace.Ocean
+-- Imports the 'RunService' module which has inbuilt functions
+local RunService = game:GetService("RunService")
+-- Gets the character of the player
+local Character = game.Players.LocalPlayer.Character
+
+
+-- This function calculates the Y axis of what each bone should be depending on: It's position, Time, Wind-Direction, Wind-steepness and Gravity
+-- I made this via following a tutorial and learning how to implement gerstners wave and then applied it to a mesh with bones - created in blender application
+-- Website to Gerstner Wave / Trochoidal Wave: https://en.wikipedia.org/wiki/Trochoidal_wave
+local function GerstnerWave(SamplePosition,Wavelength,Direction,Steepness,Gravity,SampleTick)
+	local k = (2 * math.pi) / Wavelength
+	local a = Steepness/k
+	local d = Direction.Unit
+	local c = math.sqrt(Gravity / k)
+	local f = k * d:Dot(Vector2.new(SamplePosition.X,SamplePosition.Z)) - c * SampleTick
+	local cosF = math.cos(f)
+
+	--Displacement Vectors
+	local dX = (d.X * (a * cosF))
+	local dY = a * math.sin(f)
+	local dZ = ( d.Y * (a * cosF))
+	return Vector3.new(dX,dY,dZ).y
+end
+
+
+-- On every successful frame, it will fire this function
+RunService.Heartbeat:Connect(function()
+
+    -- This sets the X,Y,Z Axis of the position to be relative of the player but maintaining it's Y axis.
+    -- This creates a sort of endless aspect too it
+		Ocean.Position = Vector3.new(c.HumanoidRootPart.Position.x,Ocean.Plane.Position.Y,c.HumanoidRootPart.Position.z)
+    
+    -- Loops through all of the children of the mesh
+		for i,v in pairs(Ocean:GetChildren()) do
+      -- Checks if the child is a bone,
+			if v:IsA("Bone") then
+        -- Sets the position of the bone
+				v.Position = Vector3.new(
+                    -- Maintains the X axis of the bone
+                    v.Position.x,
+                     -- Gets the Y Axis based on arguments asked
+                    GerstnerWave(
+                                v.Position,
+                                WindValues.WaveLength.Value,
+                                Vector2.new(WindValues.Direction.Value,WindValues.Direction2.Value),
+                                WindValues.Steepness.Value,
+                                WindValues.Gravity.Value,
+                                clock:GetTime() 
+                                ),
+                  -- Maintains the Z axis of the bone
+                   v.Position.z
+                  )
+			end
+		end
+	end)
