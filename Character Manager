@@ -1,0 +1,52 @@
+
+-- Coded in LUA
+
+-- Designed to be the middle-man for the client and modules. 
+
+
+local Player = script.Parent.Parent
+local Character = Player.Character or Player.CharacterAdded:Wait()
+
+local Humanoid = Character:WaitForChild'Humanoid'
+local HumanoidRootPart = Character:WaitForChild'HumanoidRootPart'
+
+local characterEvents = script.Parent:WaitForChild('Events')
+print('Loaded '.. script.Name.. " script!")
+
+
+
+Character.Parent = workspace.Alive
+delay(1,function()
+	Character.Parent = workspace.Alive
+end)
+local StartModules = game.ServerStorage.StartModules
+local RunModules = game.ServerStorage.RunModules
+local Stats = game.ServerStorage.Requests.FetchData:Invoke(Player)
+
+
+for i, Module in pairs(StartModules:GetChildren()) do
+	spawn(function() require(Module)(Player,Character,Stats) end)
+end
+
+
+for i, Child in pairs(Player:GetChildren()) do
+	if Child.Name == "Danger" then Child:Destroy() end
+end
+
+
+characterEvents.OnPress.OnServerEvent:Connect(function(Plr, Key,...)
+	if Plr ~= Player then 
+		return 
+	end
+
+	--[[local Tool = Character:FindFirstChildOfClass'Tool'
+
+	if Key == "M1" and activateTool(Tool) then
+		return
+	end]]
+
+	if RunModules:FindFirstChild(Key) then
+		require(RunModules[Key])(Player,Character,nil,...)
+		return
+	end	
+end)
