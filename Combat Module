@@ -1,0 +1,532 @@
+-- Coded in LUA / Roblox IDE
+-- Object Orientated Programming within LUA
+
+
+local module = {}
+
+local Stun_List = {
+	"Swing",
+	"Stun",
+	"GuardBroken",
+	"IFrame",
+	"Blocking",
+	"CompleteStun"
+	
+	
+}
+
+module.Stun_List = Stun_List
+
+-- Physics
+
+local Physics = game:GetService('PhysicsService')
+
+local ID = Physics:CreateCollisionGroup("Carried")
+Physics:CollisionGroupSetCollidable("Carried","Default",false)
+
+local grabFolder = require(game.ServerStorage.ServerModule.GrabFolder)
+
+
+
+-- Effect Management
+
+module.CheckStun = function(Character)
+	local Effects = Character.Effects
+	local HasStun = false
+	for i,x in pairs(Stun_List) do
+		if Effects:FindFirstChild(x) then HasStun = true break end
+	end
+	
+	return HasStun
+end
+
+module.AddEffect = function(character,Value,Length)
+	local effects = character:FindFirstChild("Effects")
+
+	if not effects then
+		effects = Instance.new("Folder")
+		effects.Name = "Effects"
+		effects.Parent = character
+	end
+
+	local Bool = Instance.new('BoolValue')
+	Bool.Name = Value
+	Bool.Parent = effects
+
+	if Length then
+		game.Debris:AddItem(Bool,Length)
+	end
+
+	return Bool
+end
+
+module.Backcheck = function(Player1,Player2)
+
+	local Mag1 = ((Player1.HumanoidRootPart.Position + Player1.HumanoidRootPart.CFrame.lookVector * -2) - Player2.HumanoidRootPart.Position).Magnitude
+	local Mag2 = (Player1.HumanoidRootPart.Position- Player2.HumanoidRootPart.Position).Magnitude
+	--print(Mag1)
+	--print(Mag2)
+	return Mag1 < Mag2 and true or false
+end
+
+local EffectsEvent = game.ReplicatedStorage.Effects.Event
+
+
+local GuardBreak = require(game.ServerStorage.ServerModule.GuardBreak)
+
+local Flourish = require(game.ServerStorage.ServerModule.Flourish)
+
+
+module.CombatTag = function(person)
+	if person.Parent == workspace.Alive then
+		person = game.Players:GetPlayerFromCharacter(person)
+	end
+	
+	if person then
+		local Folder = Instance.new('Folder')
+		Folder.Name = "Danger"
+		Folder.Parent = person
+		game.Debris:AddItem(Folder,45)
+	end
+end
+
+-- Damage
+
+module.Damage = function(causer,target,parameters)
+	if not parameters.Damage or target.Effects:FindFirstChild('IFrame') or module.Backcheck(causer,target) then return end
+	parameters.Posture = parameters.Posture or parameters.Damage
+	local Backcheck = module.Backcheck(target,causer)
+	
+	local createPosition = function(tar,Position,Debris)
+		
+		
+		
+		game.ReplicatedStorage.Effects.Event:FireAllClients("Push",causer,tar,Position,Debris)
+		--[[if not game.Players:GetPlayerFromCharacter(tar) then
+			local cf = tar.HumanoidRootPart.CFrame + Position
+			delay(Debris,function()
+				tar.HumanoidRootPart.CFrame = cf
+			end)
+		end
+		
+		if not game.Players:GetPlayerFromCharacter(causer) then
+			local cf = causer.HumanoidRootPart.CFrame + Position
+			delay(Debris,function()
+				causer.HumanoidRootPart.CFrame = cf
+			end)
+		end]]
+		
+	
+	end
+	
+	module.CombatTag(causer)
+	module.CombatTag(target)
+	
+	
+	if target.Effects:FindFirstChild('Weave') and parameters.Ranged then
+		
+		if target.RecentlyHit:FindFirstChild(causer.Name) then
+			target.RecentlyHit[causer.Name]:Destroy()
+		end
+		
+		local Timer = tick()
+		local eff = Instance.new('BoolValue')
+		eff.Name = "Afterimage"
+		eff.Parent = target.Effects
+		
+		
+		local success = module.AddEffect(target,"SuccessWeave")
+		game.Debris:AddItem(success,.5)
+		
+		
+		local successWeaved = module.AddEffect(causer,"SuccessWeaved")
+		game.Debris:AddItem(success,1.5)
+		
+		
+		local Surprise = script.Surprise:Clone()
+		Surprise.Parent = causer.Head
+		Surprise:Play()
+		game.Debris:AddItem(Surprise,1.5)
+		local billboard = script.BillboardGui:Clone()
+		billboard.Parent = causer.Head
+		billboard.Adornee = causer.Head
+		game.Debris:AddItem(billboard,1)
+		
+		local Stun = module.AddEffect(causer,"Stun")
+
+
+		game.Debris:AddItem(Stun,1.5)
+		
+		EffectsEvent:FireClient(game.Players:GetPlayerFromCharacter(target) ,"Disengage", target, math.random(1,3))
+		spawn(function()
+			while tick() - Timer <= .25 and task.wait(.15) do  EffectsEvent:FireAllClients("Dodge", target, math.random(1,3)) end
+			eff:Destroy()
+		end)
+
+		return
+	end
+	
+	if target.Effects:FindFirstChild('Dodging') and parameters.M1 then
+		--target.Effects.DodgeCD:Destroy()
+		
+		if target.RecentlyHit:FindFirstChild(causer.Name) then
+			target.RecentlyHit[causer.Name]:Destroy()
+		end
+		
+		local Stun = module.AddEffect(causer,"cantswing")
+		
+		
+		local success = module.AddEffect(target,"SuccessDodge")
+
+		game.Debris:AddItem(Stun,.65)
+		
+		local Stun = module.AddEffect(target,"M1SpeedIncrease")
+		game.Debris:AddItem(Stun,1)
+		
+		
+		local currentPosture = causer:GetAttribute'Posture'
+		
+		local increasePosture = parameters.Damage
+		
+		
+		local Multi1,Multi2 = 1.52380952381,1.90476190476
+		
+		
+		
+		causer:SetAttribute('Posture', math.min(currentPosture and currentPosture + (increasePosture * Multi1) or (increasePosture * Multi1), 99.99))
+		target:SetAttribute('Posture', math.max(target:GetAttribute('Posture') and target:GetAttribute('Posture') - (increasePosture * Multi2) or (increasePosture * Multi2), 0))
+		
+		
+		spawn(function()
+			while target.Effects:FindFirstChild('Dodging') and task.wait() do end
+			target.Effects.DodgeCD:Destroy()
+			game.Debris:AddItem(success,.25)
+		end)
+		EffectsEvent:FireAllClients("Dodge", target, target:GetAttribute'DodgeCombo')
+		print('Dodge')
+		return
+	end
+	
+	
+	
+	
+	
+	
+	
+	
+	if target.Effects:FindFirstChild('Blocking') and not target.Effects:FindFirstChild('Dodging') and not module.Backcheck(target,causer) then
+		--[[if target.Effects:FindFirstChild('perfectBlock') and parameters.Heavy and not target.Effects:FindFirstChild('PBlockStun') and not target.Effects:FindFirstChild('SuccessWeaved') then
+			print('Perfect Block')
+			
+			local Stun = module.AddEffect(causer,"Stun")
+			local Stun2 = module.AddEffect(target,"PBlockStun")
+			game.Debris:AddItem(Stun2,2.75)
+			game.Debris:AddItem(Stun,.5)
+			
+			target:SetAttribute('Posture', math.max(target:GetAttribute'Posture' - 25, 0 ))
+			EffectsEvent:FireAllClients("PerfectBlockHit", target, causer, parameters.Combo)
+			return
+		end]]
+		local causerFolder = grabFolder(causer) 
+		causerFolder = causerFolder and causerFolder.Parent
+		local Folder = grabFolder(target)
+	
+		
+		local currentPosture = target:GetAttribute('Posture')
+		
+		local increasePosture = parameters.GuardDamage or parameters.Damage * (causerFolder and (causerFolder.Weight.Value * (parameters.WeightAmplifier or 1)) or 4)
+
+		if currentPosture and currentPosture + increasePosture >= 100 then
+			-- BREAK
+			EffectsEvent:FireAllClients("BlockHit", target, causer, parameters.Combo)
+			target:SetAttribute('Posture',33)
+			GuardBreak(target)
+			
+			return
+		else
+			target:SetAttribute('Posture', currentPosture and currentPosture + increasePosture or increasePosture)
+		end
+		
+		
+		if causerFolder then
+			local Penetration = causerFolder.Penetration.Value
+			if Penetration > 1 and not Folder then
+				target.Humanoid.Health = math.max(target.Humanoid.Health - (parameters.Damage * (Penetration - 1)), 3)
+			end
+
+		end
+		
+		
+		local Animation = target.Humanoid:LoadAnimation(Folder and Folder:FindFirstChild'BlockHit' or game.ReplicatedStorage.Animations.BlockHit)
+		Animation.Priority = Enum.AnimationPriority.Action3
+		Animation:Play()
+		print('Block Hit')
+		
+		
+		
+		
+		EffectsEvent:FireAllClients("BlockHit", target, causer, parameters.Combo)
+		
+		local Base = causer.HumanoidRootPart.CFrame.lookVector
+
+		local Push = Base * 1.05
+		createPosition(target, Push, .15)
+		
+		local Stun = module.AddEffect(target,"Stun")
+
+
+		game.Debris:AddItem(Stun,.35)
+		return
+	end
+	
+	if target.Effects:FindFirstChild('Blocking') then
+		target.Effects.Blocking:Destroy()
+	end
+	
+	
+	if parameters.Push then
+
+
+		--local Base = (target.HumanoidRootPart.Position - causer.HumanoidRootPart.Position).unit
+		local Base = causer.HumanoidRootPart.CFrame.lookVector
+
+
+		--	local Base = CFrame.new(causer.HumanoidRootPart.Position, target.HumanoidRootPart.Position)
+
+		local Push = Base * 1.5
+
+		createPosition(causer, Push, .15)
+		createPosition(target, Push, .15)
+
+	end
+	
+	local Animation = target.Humanoid:LoadAnimation(game.ReplicatedStorage.Animations.Hit2)
+	Animation.Priority = Enum.AnimationPriority.Action
+	Animation:Play()
+	
+	
+	EffectsEvent:FireAllClients(parameters.Slash and "Slash" or "Hit", target, causer, parameters.Combo, parameters.Heavy)
+	
+	
+	
+	
+	
+	
+	local Stun = module.AddEffect(target,"Stun")
+	
+	
+	game.Debris:AddItem(Stun,.75)
+	
+	
+	if target.Humanoid.Health - parameters.Damage <= 3 then
+		if not string.find(target.Name, "Dummy") then
+			module.Knock(target)
+			
+			return
+		end
+		
+		
+	else
+		
+		target.Humanoid:TakeDamage(parameters.Damage)
+	end
+	local causerFolder = grabFolder(causer) 
+
+	causer:SetAttribute('Posture', math.max(causer:GetAttribute('Posture') and causer:GetAttribute('Posture') - ((parameters.Damage * (causerFolder and causerFolder.Parent.Weight.Value or 3)) / 2) or 0), 0)
+
+	
+	local Value = target.RecentlyHit:FindFirstChild(causer.Name) or Instance.new('NumberValue')
+	Value.Name = causer.Name
+	Value.Parent = target.RecentlyHit
+	
+	if parameters.Knockback then
+		EffectsEvent:FireAllClients("Flourish", causer, target)
+		EffectsEvent:FireAllClients(parameters.Slash and "Slash" or "Hit", target, causer, parameters.Combo, parameters.Heavy)
+		
+		local BV = Instance.new('BodyVelocity')
+		BV.MaxForce = Vector3.new(100000,100000,100000)
+		BV.Velocity = Vector3.new(0,5,0) + CFrame.new(causer.HumanoidRootPart.Position, target.HumanoidRootPart.Position).LookVector * 35
+		BV.Parent = target.HumanoidRootPart
+		game.Debris:AddItem(BV,.35)
+	end
+	
+	
+	if parameters.M1 then
+		if Value.Value + 1 >= 3 then
+			-- Flourish
+			print('Flourish')
+			Value:Destroy()
+			
+			Flourish(causer, target)
+			EffectsEvent:FireAllClients("Flourish", causer, target)
+			EffectsEvent:FireAllClients(parameters.Slash and "Slash" or "Hit", target, causer, parameters.Combo, parameters.Heavy)
+			--	module.TempKnock(target)
+			
+			parameters.Damage /= 2
+			
+			if target.Humanoid.Health - parameters.Damage <= 3 then
+				if not string.find(target.Name, "Dummy") then
+					module.Knock(target)
+
+					return
+				end
+
+
+			else
+
+				target.Humanoid:TakeDamage(parameters.Damage)
+			end
+			
+			
+			
+			local BV = Instance.new('BodyVelocity')
+			BV.MaxForce = Vector3.new(100000,100000,100000)
+			BV.Velocity = Vector3.new(0,5,0) + CFrame.new(causer.HumanoidRootPart.Position, target.HumanoidRootPart.Position).LookVector * 35
+			BV.Parent = target.HumanoidRootPart
+			game.Debris:AddItem(BV,.35)
+			
+		else
+			Value.Value += 1
+			local Before = Value.Value
+			delay(2.5, function()
+				if Value and Value.Value == Before then
+					Value:Destroy()
+				end
+			end)
+		end
+	end
+end
+
+local setRagdoll = require(game.ServerScriptService.Ragdoll)
+
+
+module.TempKnock = function(target)
+	setRagdoll(target, true, true)
+	local IFrame = Instance.new('BoolValue')
+	IFrame.Name = "IFrame"
+	IFrame.Parent = target.Effects
+	
+	delay(.3,function()
+		IFrame:Destroy()
+		setRagdoll(target, false, true)
+	end)
+end
+
+
+module.Knock = function(target,permanent)
+	setRagdoll(target, true, true)
+	local IFrame = Instance.new('BoolValue')
+	IFrame.Name = "IFrame"
+	IFrame.Parent = target.Effects
+
+	local Knocked = Instance.new('BoolValue')
+	Knocked.Name = "Knocked"
+	Knocked.Parent = target.Effects
+	
+	delay(4, function()
+		local tp = game.Players:GetPlayerFromCharacter(target) 
+		if tp then
+			tp:LoadCharacter()
+		else
+			target:Destroy()
+		end
+	end)
+
+--[[	local ragdollDisabled = false
+	local Timer = tick()
+	
+	game:GetService('TweenService'):Create(target.Humanoid,TweenInfo.new(Timer),{Health = target.Humanoid.MaxHealth / 3}):Play()
+	
+	
+	while tick() - Timer < (permanent and math.huge or 12) do
+		if target.Effects:FindFirstChild('Carried') then
+			Timer = tick()
+			setRagdoll(target, false, true)
+			if not ragdollDisabled then
+				for i,x in pairs(target:GetDescendants()) do
+					if x:IsA('BasePart') then
+						Physics:SetPartCollisionGroup(x,"Carried")
+					end
+				end
+			end
+			ragdollDisabled = true
+		elseif ragdollDisabled then
+			for i,x in pairs(target:GetDescendants()) do
+				if x:IsA('BasePart') then
+					Physics:SetPartCollisionGroup(x,"Default")
+				end
+			end
+			ragdollDisabled = false
+			setRagdoll(target, true, true)
+		end
+		--target.Humanoid.AutoRotate = false
+		task.wait()
+	end
+	--target.Humanoid.AutoRotate = true
+	IFrame:Destroy()
+	Knocked:Destroy()
+	setRagdoll(target, false, true)]]
+end
+
+
+
+
+-- Hitbox Management
+function Process(CF, Size, Character, Blacklist)
+	Blacklist = Blacklist or {}
+
+	local OverlapParam = OverlapParams.new()
+	OverlapParam.FilterType = Enum.RaycastFilterType.Include
+
+	local Table = {}
+
+	for _, Alive in pairs(workspace.Alive:GetChildren()) do
+		if Alive ~= Character and not table.find(Blacklist, Alive) and Alive:FindFirstChild'HumanoidRootPart' then
+			for _, Part in pairs(Alive:GetChildren()) do
+				if Part:IsA("BasePart") and not ((Part.Parent:IsA('Folder') and Part.Parent.Name ~= "Body")) and not (Part.Transparency == 1) then
+					table.insert(Table, Part)
+				end
+			end
+			
+			if Alive:FindFirstChild('Body') then
+				for _, Part in pairs(Alive.Body:GetChildren()) do
+					if Part:IsA("BasePart") and not ((Part.Parent:IsA('Folder') and Part.Parent.Name ~= "Body")) and not (Part.Transparency == 1) then
+						table.insert(Table, Part)
+					end
+				end
+			end
+		end
+	end
+
+	OverlapParam.FilterDescendantsInstances = Table
+
+	return workspace:GetPartBoundsInBox(CF, Size, OverlapParam)
+end
+
+module.Hitbox = function(Character, Type, HitboxPart,Static,deb,Forward)
+	Static = Static or 3.5
+
+	if not HitboxPart and Type then
+		HitboxPart = Character[Type].Blade.Blade
+	elseif not HitboxPart then
+		return
+	end	
+
+	if deb then
+		local h=  Instance.new("Part")
+		h.CFrame = Forward and HitboxPart.CFrame + (HitboxPart.CFrame.LookVector * (Static/2)) or HitboxPart.CFrame
+		h.Size = HitboxPart.Size + Vector3.new(HitboxPart.Name == "Blade" and .5 or Static, Static, Static)
+		h.Anchored = true
+		h.CanCollide = false
+		h.Color = Color3.new(1, 0, 0)
+		h.Material = Enum.Material.Neon
+		h.Parent = workspace.Debris
+		game.Debris:AddItem(h,2)
+	end
+
+	return Process(Forward and HitboxPart.CFrame + (HitboxPart.CFrame.LookVector * (Static/2)) or HitboxPart.CFrame, HitboxPart.Size + Vector3.new(HitboxPart.Name == "Blade" and .5 or Static, Static, Static), Character)
+end
+
+
+
+return module
