@@ -2,6 +2,9 @@
 -- CODED IN ROBLOX IDE
 -- CODING LANGUAGE: LUA
 
+
+
+
 -- This gets the necessary wind-values which can be changed in the IDE or by the game itself from any server-sided code.
 local WindValues = game.ReplicatedStorage.WindValues
 -- Gets the Ocean mesh, to recall at later use
