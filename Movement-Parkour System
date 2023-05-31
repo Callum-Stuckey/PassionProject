@@ -2,6 +2,8 @@
 -- CODING LANGUAGE: LUA
 
 
+
+
 -- This creates an object [object orientated programming], which stores variables inside, its children, to be called upoon later
 local Movement = {CrouchStuck = false,Crouching = false,SlipStream = 0,Vaulting = false,JumpCD = false,Running = false,WPressed = false,WDown = false,ADown = false,SDown = false,DDown = false}
 -- This creates a child in movement, called Animations and Sounds which store the correct animations and sounds to be called upon
